@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QR Code Generator with Falling Star</title>
+  <style>
+    body {
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; margin: 0;
+      background: radial-gradient(ellipse at bottom, #0d1d31 0%, #0c0d13 100%);
+      font-family: Arial, sans-serif; color: white; position: relative; overflow: hidden;
+    }
+    .stars {
+      position: fixed; top: 0; left: 0; width: 100%; height: 120%;
+      transform: rotate(-45deg); pointer-events: none; z-index: 0;
+    }
+    .star {
+      position: absolute; left: 0; height: 2px; border-radius: 50%;
+      background: linear-gradient(45deg, currentColor, transparent);
+      filter: drop-shadow(0 0 6px currentColor);
+      transform: translate3d(104em,0,0);
+      animation: fall linear infinite, tail-fade ease-out infinite;
+      animation-duration: var(--fall-duration, 9s), var(--fall-duration, 9s);
+      animation-delay: var(--fall-delay, 0s), var(--fall-delay, 0s);
+      animation-direction: normal;
+      top: var(--top-offset, 50%);
+      width: var(--star-tail-length, 6em);
+      color: var(--star-color, #fff);
+    }
+    .star::before, .star::after {
+      position: absolute; content: '';
+      top: 0; left: calc(var(--star-width, 1em) / -2);
+      width: var(--star-width, 1em); height: 100%;
+      background: linear-gradient(45deg, transparent, currentColor, transparent);
+      border-radius: inherit;
+      animation: blink 2s linear infinite;
+      pointer-events: none;
+    }
+    .star::before { transform: rotate(45deg); }
+    .star::after { transform: rotate(-45deg); }
+
+    @keyframes fall { to { transform: translate3d(-30em, 0, 0); } }
+    @keyframes tail-fade {
+      0%, 50% { width: var(--star-tail-length, 6em); opacity: 1; }
+      70%, 80% { width: 0; opacity: 0.4; }
+      100% { width: 0; opacity: 0; }
+    }
+    @keyframes blink { 50% { opacity: 0.6; } }
+
+    #big-star {
+      position: fixed; top: 10px; right: 10px;
+      width: 60px; height: 60px; border-radius: 50%;
+      background: linear-gradient(45deg, gold, transparent);
+      filter: drop-shadow(0 0 8px gold);
+      opacity: 0; pointer-events: none; z-index: 100;
+      transform: translate(0, 0) rotate(45deg);
+      animation-fill-mode: forwards;
+    }
+    #big-star::before, #big-star::after {
+      content: ''; position: absolute; top: 50%; left: 50%;
+      width: 20px; height: 4px; background: gold; border-radius: 2px;
+      filter: drop-shadow(0 0 8px gold);
+      transform-origin: center;
+    }
+    #big-star::before { transform: translate(-50%, -50%) rotate(45deg); }
+    #big-star::after { transform: translate(-50%, -50%) rotate(-45deg); }
+    @keyframes big-star-fall {
+      0%   { opacity: 1; transform: translate(0, 0) rotate(45deg); }
+      100% { opacity: 0; transform: translate(-300px, 300px) rotate(45deg); }
+    }
+
+    #app {
+      position: relative; z-index: 1;
+      max-width: 400px;
+      margin: 50px auto;
+      padding: 20px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.6);
+      text-align: center;
+
+      /* Responsive */
+      width: 90%;
+      box-sizing: border-box;
+    }
+    input {
+      width: 80%;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 1rem;
+      border-radius: 4px;
+      border: 2px solid #ccc;
+      background: white;
+      color: black;
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color 0.3s ease;
+      min-height: 40px;
+    }
+    input:focus {
+      border-color: #4CAF50;
+    }
+    h2 {
+      font-size: 1.4rem;
+      margin-bottom: 15px;
+    }
+    #download-link {
+      display: none;
+      margin-top: 15px;
+      color: #4CAF50;
+      font-weight: bold;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 1.1rem;
+      padding: 10px 15px;
+      border-radius: 6px;
+      user-select: none;
+    }
+
+    #toast {
+      visibility: hidden; min-width: 160px; margin-left: -80px;
+      background-color: #333; color: #fff; text-align: center;
+      border-radius: 4px; padding: 10px 12px;
+      position: fixed; left: 50%; bottom: 20px; z-index: 10;
+      font-size: 1rem; opacity: 0;
+      transition: opacity 0.5s ease-in-out;
+      pointer-events: none;
+    }
+    #toast.show { visibility: visible; opacity: 1; }
+
+    /* Responsive tweaks */
+    @media (max-width: 450px) {
+      #app {
+        max-width: 95%;
+        padding: 15px;
+      }
+      input {
+        width: 100%;
+        font-size: 1.1rem;
+      }
+      h2 {
+        font-size: 1.2rem;
+      }
+      #download-link {
+        font-size: 1.2rem;
+        padding: 12px 20px;
+      }
+      #qr-code canvas {
+        width: 180px !important;
+        height: 180px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="stars">
+    <div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div>
+    <div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div>
+    <div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div>
+    <div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div>
+    <div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div>
+    <div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div>
+    <div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div>
+    <div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div>
+    <div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div>
+    <div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div><div class="star"></div>
+  </div>
+
+  <div id="app">
+    <h2>URL to QR Code Generator</h2>
+    <input id="url-input" type="text" placeholder="Enter or paste URL here" autocomplete="off" />
+    <div id="qr-code"></div>
+    <a id="download-link" href="#" download="qr-code.png">Download QR Code</a>
+  </div>
+
+  <div id="big-star"></div>
+  <div id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script>
+    const toast = document.getElementById('toast');
+    const urlInput = document.getElementById('url-input');
+    const qrCodeDiv = document.getElementById('qr-code');
+    const downloadLink = document.getElementById('download-link');
+    const bigStar = document.getElementById('big-star');
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function generateQR(url) {
+      if (!url) {
+        qrCodeDiv.innerHTML = '';
+        downloadLink.style.display = 'none';
+        return;
+      }
+      QRCode.toCanvas(url, { width: 200 }, (err, canvas) => {
+        if (err) {
+          qrCodeDiv.textContent = 'Error generating QR code.';
+          console.error(err);
+          downloadLink.style.display = 'none';
+          return;
+        }
+        qrCodeDiv.innerHTML = '';
+        qrCodeDiv.appendChild(canvas);
+        downloadLink.href = canvas.toDataURL('image/png');
+        downloadLink.style.display = 'inline-block';
+        showToast('QR code updated!');
+      });
+    }
+
+    urlInput.addEventListener('input', () => generateQR(urlInput.value.trim()));
+
+    downloadLink.addEventListener('click', () => {
+      showToast('Downloaded successfully!');
+      bigStar.style.opacity = '1';
+      bigStar.style.animation = 'big-star-fall 2s forwards';
+      bigStar.onanimationend = () => {
+        bigStar.style.opacity = '0';
+        bigStar.style.animation = '';
+      };
+    });
+
+    // Initialize background stars
+    document.querySelectorAll('.star').forEach(star => {
+      star.style.setProperty('--star-tail-length', (Math.random()*2.5+3) + 'em');
+      star.style.setProperty('--top-offset', (Math.random()*100) + '%');
+      star.style.setProperty('--fall-duration', (Math.random()*6+6) + 's');
+      star.style.setProperty('--fall-delay', (Math.random()*10) + 's');
+      star.style.setProperty('--star-width', `calc(var(--star-tail-length) / 6)`);
+    });
+  </script>
+</body>
+</html>
